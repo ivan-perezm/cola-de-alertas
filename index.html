@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="es" data-theme="oscura">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Iván Pérez · Cola de triaje</title>
+<meta name="description" content="Portfolio de Iván Pérez, analista SOC en formación: cada alerta es algo real de su laboratorio, con su prueba.">
+<style>
+/* Monitor de triaje: pantalla de urgencias de los 2000 con piezas de Windows 2000.
+   Oscura por defecto (botón para pasar a clara). Colores de prioridad con significado fijo. */
+:root{
+  --f:Verdana,"DejaVu Sans","Bitstream Vera Sans",Tahoma,Geneva,sans-serif;
+  --desk:#09101a;--grid:rgba(120,160,255,.055);--face:#1a2638;--hi:#33466a;--sh:#03060a;
+  --t:#eef2f8;--t2:#a9b8cd;--well:#0e1726;--row:#101a29;--rowsel:#17253b;
+  --tb:#14306b;--pb:#5583e6;--rojo:#ff3b30;--ambar:#ffb000;--gris:#8f97a5;--verde:#34c759;
+  --tip:#3a3521;--tipt:#f6ecbc;--tipb:#8a7d3c;--focus:#f2a33a;--velo:rgba(2,5,10,.72);
+  color-scheme:dark;
+}
+:root[data-theme="clara"]{
+  --desk:#e8ecf2;--grid:rgba(10,36,106,.07);--face:#d4d0c8;--hi:#fff;--sh:#808080;
+  --t:#0b1220;--t2:#3f4a5c;--well:#fff;--row:#fff;--rowsel:#eef3ff;
+  --tb:linear-gradient(90deg,#0a246a,#a6caf0);--pb:#0a246a;--rojo:#d50000;--ambar:#b35900;--gris:#5f6672;--verde:#1b7f2a;
+  --tip:#ffffe1;--tipt:#000;--tipb:#000;--focus:#0a246a;--velo:rgba(20,30,50,.45);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{background:var(--desk)}
+body{margin:0;min-height:100vh;font:16px/1.5 var(--f);color:var(--t);
+  background-color:var(--desk);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(24px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  scrollbar-color:var(--hi) var(--desk)}
+::selection{background:var(--pb);color:#fff}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+a{color:inherit;text-underline-offset:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+svg.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* piezas de Windows 2000 */
+.win{max-width:1120px;margin:0 auto;background:var(--face);border:2px solid;border-color:var(--hi) var(--sh) var(--sh) var(--hi);padding:2px}
+.tb{display:flex;align-items:center;gap:8px;height:26px;padding:0 3px 0 8px;background:var(--tb);color:#fff;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden}
+.tb .ico{width:14px;height:14px;background:var(--rojo);border:1px solid rgba(255,255,255,.25);flex:none}
+.tb .t{overflow:hidden;text-overflow:ellipsis}
+.tb .x{margin-left:auto;display:flex;gap:2px}
+.tb .x span,.tb .x button{width:18px;height:16px;display:grid;place-items:center;background:var(--face);color:var(--t);border:1px solid;border-color:var(--hi) var(--sh) var(--sh) var(--hi);padding:0;cursor:default}
+.tb .x button{cursor:pointer}
+.tb .x svg.i{width:10px;height:10px;stroke-width:2.4}
+.btn{font:inherit;font-size:13px;color:var(--t);background:var(--face);border:2px solid;border-color:var(--hi) var(--sh) var(--sh) var(--hi);padding:5px 12px;display:inline-flex;align-items:center;gap:7px;cursor:pointer;text-decoration:none;white-space:nowrap;min-height:34px}
+.btn:hover{background:var(--rowsel)}
+.btn:active,.btn[aria-pressed="true"]{border-color:var(--sh) var(--hi) var(--hi) var(--sh)}
+.btn[aria-pressed="true"]{font-weight:700}
+.sunk{border:2px solid;border-color:var(--sh) var(--hi) var(--hi) var(--sh);background:var(--well)}
+.prog{display:flex;gap:2px;padding:2px;height:24px}
+.prog i{flex:1;background:transparent;transition:background .3s}
+.prog i.on{background:var(--pb)}
+
+/* cabecera */
+.hd{display:flex;justify-content:space-between;align-items:flex-end;gap:16px 24px;flex-wrap:wrap;padding:20px 22px 14px}
+.hd h1{font:700 clamp(28px,5vw,40px)/1.05 var(--f);margin:0;letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
+.hd .sub{margin:6px 0 0;color:var(--t2);font-size:14px}
+.side{display:flex;flex-direction:column;align-items:flex-end;gap:8px;min-width:0}
+.meter{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px}
+.meter .prog{width:240px}
+.acts{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.grp{display:inline-flex}
+.grp .btn{padding:5px 9px}
+
+.legend{display:flex;gap:6px 20px;align-items:center;flex-wrap:wrap;padding:8px 22px;background:var(--well);border-top:1px solid var(--hi);border-bottom:1px solid var(--hi);font-size:13px;color:var(--t2)}
+.legend span{display:flex;align-items:center;gap:7px}
+.legend i{width:12px;height:12px;background:var(--c)}
+.legend .sp{flex:1}
+.r{--c:var(--rojo)}.a{--c:var(--ambar)}.g{--c:var(--gris)}.v{--c:var(--verde)}
+
+/* tabla */
+.zona{position:relative;padding:10px 22px 22px}
+.th,.tr{display:grid;grid-template-columns:118px 64px minmax(0,1fr) 140px 150px;align-items:center}
+.th{font-size:12px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;padding:0 0 6px 14px}
+.th span{padding:0 12px}
+.lista{display:flex;flex-direction:column;gap:6px;list-style:none;margin:0;padding:0}
+.it{background:var(--row);border-left:14px solid var(--c)}
+.it.abierta{background:var(--rowsel);outline:2px solid var(--c);outline-offset:-2px}
+.tr{width:100%;min-height:54px;background:none;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer;padding:0}
+.tr:hover{background:var(--rowsel)}
+.tr>span{padding:0 12px;min-width:0}
+.pill{font-weight:700;font-size:12px;color:var(--c);letter-spacing:.06em;display:flex;align-items:center;gap:6px}
+.nv{font-weight:700;font-size:24px;font-variant-numeric:tabular-nums}
+.cs{font-weight:700;font-size:19px;line-height:1.3;padding-block:8px!important}
+.cs small{display:none;font-weight:400;font-size:12px;color:var(--t2)}
+.tema{color:var(--t2);font-size:14px}
+.est{font-size:14px;display:flex;align-items:center;gap:7px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--c);flex:none}
+.it.atendida .cs,.it.atendida .nv{color:var(--t2)}
+@keyframes latido{50%{opacity:.15}}
+.late{animation:latido 1.6s ease-in-out infinite}
+@keyframes franja{50%{border-left-color:color-mix(in srgb,var(--c) 30%,var(--row))}}
+.it.urge{animation:franja 1.6s ease-in-out infinite}
+
+.det{display:grid;grid-template-rows:0fr;transition:grid-template-rows .22s cubic-bezier(.16,1,.3,1)}
+.it.abierta .det{grid-template-rows:1fr}
+.det>div{overflow:hidden}
+.cuerpo{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:18px;padding:4px 18px 16px 14px}
+.cuerpo .meta{font-size:12px;color:var(--t2);margin:0 0 6px}
+.cuerpo p{margin:0 0 10px;max-width:62ch}
+.cuerpo .porque{color:var(--t2);font-size:14px}
+.cuerpo .fila{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.mini{display:flex;flex-direction:column;gap:6px;background:none;border:0;padding:0;color:var(--t2);font:inherit;font-size:12px;cursor:zoom-in;text-align:left}
+.mini .sunk{height:150px;display:flex;align-items:center;justify-content:center;padding:4px;background:#e9ebef}
+.mini img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.mini:hover .sunk{border-color:var(--sh) var(--focus) var(--focus) var(--sh)}
+.datos{margin:0;padding:0;list-style:none;display:grid;gap:6px;font-size:14px}
+.datos li{display:flex;gap:8px;align-items:baseline}
+.datos b{min-width:92px;color:var(--t2);font-weight:400}
+
+/* globo de ayuda */
+.globo{position:relative;margin:0 0 16px auto;width:min(460px,100%);background:var(--tip);color:var(--tipt);border:1px solid var(--tipb);border-radius:8px;padding:10px 34px 12px 12px;font-size:13px;line-height:1.45;z-index:2;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.globo b{display:block;margin-bottom:3px}
+.globo p{margin:0}
+.globo:after{content:"";position:absolute;bottom:-8px;left:40px;width:14px;height:14px;background:var(--tip);border-right:1px solid var(--tipb);border-bottom:1px solid var(--tipb);transform:rotate(45deg)}
+.globo .c{position:absolute;right:6px;top:6px;width:24px;height:24px;display:grid;place-items:center;background:none;border:0;color:inherit;cursor:pointer}
+
+/* ventanas (diálogos) */
+dialog{padding:0;border:0;background:transparent;color:var(--t);max-width:min(920px,94vw);width:100%}
+dialog.peq{max-width:min(460px,94vw)}
+dialog::backdrop{background:var(--velo)}
+dialog .win{max-width:none}
+.dlg{padding:16px 18px 18px;display:flex;flex-direction:column;gap:12px;max-height:80vh;overflow:auto}
+.dlg h2{font:700 20px/1.25 var(--f);margin:0}
+.dlg p{margin:0}
+.dlg figure{margin:0;display:flex;flex-direction:column;gap:6px}
+.dlg figure .sunk{background:#e9ebef;padding:6px;display:flex;justify-content:center}
+.dlg figure img{max-width:100%;max-height:62vh;object-fit:contain;display:block}
+.dlg figcaption{font-size:13px;color:var(--t2)}
+.pie{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.contacto{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.contacto li{display:grid;grid-template-columns:90px minmax(0,1fr);gap:10px;align-items:center;font-size:14px}
+.contacto li span:first-child{color:var(--t2)}
+.contacto a,.contacto .val{overflow-wrap:anywhere}
+.pend{color:var(--ambar);font-style:italic}
+.cierre{display:flex;gap:12px;align-items:flex-start}
+.cierre .ok{width:36px;height:36px;border-radius:50%;background:var(--verde);color:#fff;display:grid;place-items:center;flex:none}
+.cierre .ok svg.i{width:20px;height:20px;stroke-width:2.6}
+
+/* móvil */
+@media (max-width:760px){
+  body{padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+  .hd{padding:14px 14px 12px;align-items:stretch}
+  .side{align-items:stretch;width:100%}
+  .meter{justify-content:space-between}
+  .meter .prog{width:auto;flex:1;max-width:220px}
+  .acts{justify-content:flex-start}
+  .legend{padding:8px 14px;font-size:12px}
+  .legend .sp,.th{display:none}
+  .zona{padding:10px 10px 16px}
+  .tr{grid-template-columns:52px minmax(0,1fr) 34px}
+  .tr .pill,.tr .tema{display:none}
+  .tr .est .txt{display:none}
+  .it{border-left-width:10px}
+  .cs small{display:block}
+  .cuerpo{grid-template-columns:1fr;padding:2px 12px 14px 12px}
+  .mini .sunk{height:190px}
+}
+@media (min-width:761px){.zona{margin-top:0}}
+@media (prefers-reduced-motion:reduce){.late,.it.urge{animation:none}.det,.prog i{transition:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M8.5 13h7M8.5 17h5"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="m3.5 6 8.5 7 8.5-7"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17.2v.3"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-min" viewBox="0 0 24 24"><path d="M6 18h12"/></symbol>
+  <symbol id="i-max" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14"/><path d="M5 8h14"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5M11 8.5v5M8.5 11h5"/></symbol>
+</svg>
+
+<main class="win" aria-labelledby="nombre">
+  <div class="tb" aria-hidden="true"><i class="ico"></i><span class="t" data-t="barra">TRIAJE.EXE · Cola de alertas de Iván Pérez</span>
+    <span class="x"><span><svg class="i"><use href="#i-min"/></svg></span><span><svg class="i"><use href="#i-max"/></svg></span><span><svg class="i"><use href="#i-x"/></svg></span></span></div>
+
+  <header class="hd">
+    <div>
+      <h1 id="nombre">Iván Pérez</h1>
+      <p class="sub" data-t="sub">Cola de triaje · analista SOC N1 en formación · FCT desde el 8 mar 2027 · Madrid</p>
+    </div>
+    <div class="side">
+      <div class="meter"><span id="cuenta">Atendidas 0 de 5</span>
+        <span class="prog sunk" id="barra" role="progressbar" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" aria-labelledby="cuenta"></span></div>
+      <div class="acts">
+        <button class="btn" type="button" id="b-ayuda" aria-label="Ayuda"><svg class="i"><use href="#i-help"/></svg></button>
+        <button class="btn" type="button" id="b-cv"><svg class="i"><use href="#i-doc"/></svg><span data-t="cv">CV rápido</span></button>
+        <button class="btn" type="button" id="b-contacto"><svg class="i"><use href="#i-mail"/></svg><span data-t="contacto">Contacto</span></button>
+        <span class="grp" role="group" aria-label="Idioma"><button class="btn" type="button" data-lang="es" aria-pressed="true">ES</button><button class="btn" type="button" data-lang="en" aria-pressed="false">EN</button></span>
+        <span class="grp" role="group" data-t-aria="modo" aria-label="Modo"><button class="btn" type="button" data-tema="oscura" aria-pressed="true" data-t-aria="oscura" aria-label="Oscura"><svg class="i"><use href="#i-moon"/></svg></button><button class="btn" type="button" data-tema="clara" aria-pressed="false" data-t-aria="clara" aria-label="Clara"><svg class="i"><use href="#i-sun"/></svg></button></span>
+      </div>
+    </div>
+  </header>
+
+  <div class="legend">
+    <span class="r"><i></i><span data-t="l-r">Rojo: lo que más dice de mí</span></span>
+    <span class="a"><i></i><span data-t="l-a">Ámbar: importante</span></span>
+    <span class="g"><i></i><span data-t="l-g">Gris: puede esperar</span></span>
+    <span class="v"><i></i><span data-t="l-v">Verde: ya atendida</span></span>
+    <span class="sp"></span><span data-t="l-tip">Toca una fila para ver la prueba</span>
+  </div>
+
+  <section class="zona" aria-labelledby="nombre">
+    <div class="globo" id="globo" role="note">
+      <button class="c" type="button" id="globo-x" data-t-aria="cerrar" aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button>
+      <b data-t="g-t">¿Primera vez en un SOC?</b>
+      <p data-t="g-p">Esto es una cola de alertas, como la que vigila un analista. Cada alerta es algo que he hecho de verdad: ábrela, mira la prueba y dala por atendida. Empieza por las rojas.</p>
+    </div>
+    <div class="th" aria-hidden="true"><span data-t="c-pri">Prioridad</span><span data-t="c-nv">Nv</span><span data-t="c-caso">Caso</span><span data-t="c-tema">Tema</span><span data-t="c-est">Estado</span></div>
+    <ul class="lista" id="lista"></ul>
+  </section>
+</main>
+
+<dialog id="d-prueba"><div class="win"><div class="tb"><i class="ico"></i><span class="t" id="d-prueba-t">Prueba</span><span class="x"><button type="button" data-cerrar data-t-aria="cerrar" aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button></span></div>
+  <div class="dlg" id="d-prueba-c"></div></div></dialog>
+
+<dialog id="d-contacto" class="peq"><div class="win"><div class="tb"><i class="ico"></i><span class="t" data-t="contacto">Contacto</span><span class="x"><button type="button" data-cerrar data-t-aria="cerrar" aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button></span></div>
+  <div class="dlg"><ul class="contacto" id="d-contacto-c"></ul><div class="pie"><button class="btn" type="button" data-cerrar data-t="aceptar">Aceptar</button></div></div></div></dialog>
+
+<dialog id="d-cv" class="peq"><div class="win"><div class="tb"><i class="ico"></i><span class="t" data-t="cv">CV rápido</span><span class="x"><button type="button" data-cerrar data-t-aria="cerrar" aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button></span></div>
+  <div class="dlg"><p class="pend">Borrador: falta decidir qué PDF del CV se publica.</p><div class="pie"><button class="btn" type="button" data-cerrar data-t="aceptar">Aceptar</button></div></div></div></dialog>
+
+<dialog id="d-cierre" class="peq"><div class="win"><div class="tb"><i class="ico"></i><span class="t" data-t="cierre-t">Caso cerrado</span><span class="x"><button type="button" data-cerrar data-t-aria="cerrar" aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button></span></div>
+  <div class="dlg">
+    <div class="cierre"><span class="ok"><svg class="i"><use href="#i-check"/></svg></span>
+      <div><h2 data-t="cierre-h">5 de 5 alertas atendidas</h2>
+      <p data-t="cierre-p">Conclusión del caso: candidato a analista SOC de nivel 1. Disponible para la FCT desde el 8 de marzo de 2027, en Madrid.</p></div></div>
+    <div class="pie">
+      <button class="btn" type="button" data-abre="cv"><svg class="i"><use href="#i-doc"/></svg><span data-t="cv">CV rápido</span></button>
+      <button class="btn" type="button" data-abre="contacto"><svg class="i"><use href="#i-mail"/></svg><span data-t="contacto">Contacto</span></button>
+      <button class="btn" type="button" data-cerrar data-t="volver">Volver a la cola</button>
+    </div>
+  </div></div></dialog>
+
+<script>
+/* Lo único que hay que tocar al añadir un ejercicio: un bloque más en ALERTAS. */
+const CONTACTO = {
+  github: 'https://github.com/ivan-perezm',
+  linkedin: 'https://www.linkedin.com/in/ivan-perez-martinez-b77123444',
+  correo: 'ivanpm.tp@gmail.com',
+  cv: 'cv/CV_Ivan_Perez_Martinez.pdf'
+};
+
+const ALERTAS = [
+  { id:'perfil', nv:12, tema:{es:'Perfil',en:'Profile'},
+    titulo:{es:'Analista nuevo en la red',en:'New analyst on the network'},
+    texto:{es:'Soy Iván Pérez. Estudio 2.º de ASIR (administración de sistemas y redes) y busco hacer la FCT en un SOC desde el 8 de marzo de 2027, en Madrid.',
+           en:"I'm Iván Pérez, a second-year ASIR student (systems and network administration). I'm looking for a SOC internship starting on 8 March 2027, in Madrid."},
+    porque:{es:'Nivel 12 porque es lo primero que tienes que saber: quién soy y qué busco.',en:'Level 12 because it is the first thing you need to know: who I am and what I am looking for.'},
+    datos:[['Busco','Looking for','FCT en un SOC (Blue Team), 330 h','SOC internship (Blue Team), 330 h'],['Desde','From','8 mar 2027','8 Mar 2027'],['Dónde','Where','Madrid','Madrid'],['Inglés','English','Cambridge B2','Cambridge B2']] },
+  { id:'wazuh', nv:10, fecha:'14 nov 2026', tema:{es:'Wazuh',en:'Wazuh'},
+    titulo:{es:'109 vulnerabilidades → 9',en:'109 vulnerabilities → 9'},
+    texto:{es:'Wazuh, el programa que vigila mis equipos, encontró 109 fallos de seguridad en mi PC, 5 de ellos críticos. Actualicé y quité lo que sobraba hasta dejar 9, ninguno crítico.',
+           en:'Wazuh, the tool that monitors my machines, found 109 security flaws on my PC, 5 of them critical. I patched and removed what was not needed until 9 were left, none critical.'},
+    porque:{es:'Detectar, priorizar y comprobar que se ha arreglado es el día a día de un analista.',en:'Detecting, prioritising and checking the fix is the day-to-day work of an analyst.'},
+    pruebas:[{src:'img/wazuh_antes_despues.png',es:'Mi panel de Wazuh antes (arriba) y después (abajo)',en:'My Wazuh dashboard before (top) and after (bottom)'}] },
+  { id:'puertos', nv:8, fecha:'15 nov 2026', tema:{es:'Redes',en:'Networking'},
+    titulo:{es:'Puertos abiertos: de 10 a 4',en:'Open ports: from 10 to 4'},
+    texto:{es:'Puse HTTPS con un proxy inverso y cerré las entradas que sobraban en mi servidor. nmap, el escáner de puertos, pasó de ver 10 abiertos a ver solo 4: 22, 53, 80 y 443.',
+           en:'I set up HTTPS behind a reverse proxy and closed the doors my server did not need. nmap, the port scanner, went from seeing 10 open ports to just 4: 22, 53, 80 and 443.'},
+    porque:{es:'Menos puertas abiertas es menos por donde entrar: bastionado básico.',en:'Fewer open doors means fewer ways in: basic hardening.'},
+    pruebas:[{src:'img/nmap_antes.png',es:'nmap antes: 10 puertos abiertos',en:'nmap before: 10 open ports'},{src:'img/nmap_despues.png',es:'nmap después: solo 4',en:'nmap after: only 4'}] },
+  { id:'lab', nv:7, tema:{es:'Laboratorio',en:'Home lab'},
+    titulo:{es:'Laboratorio en marcha',en:'Home lab up and running'},
+    texto:{es:'En casa tengo Proxmox, pfSense, Docker, Pi-hole, Nginx Proxy Manager, Uptime Kuma, Beszel y Wazuh. En Rutas del homelab enseño por dónde viaja cada paquete.',
+           en:'At home I run Proxmox, pfSense, Docker, Pi-hole, Nginx Proxy Manager, Uptime Kuma, Beszel and Wazuh. In Rutas del homelab I show where each packet travels.'},
+    porque:{es:'Es el terreno donde practico todo lo demás.',en:'It is the ground where I practise everything else.'},
+    enlace:{href:'https://ivan-perezm.github.io/rutas-del-homelab/panel.html',es:'Abrir Rutas del homelab',en:'Open Rutas del homelab'},
+    pruebas:[{src:'img/rutas_del_homelab.png',es:'Rutas del homelab: mi red de casa con sus IP y puertos reales',en:'Rutas del homelab: my home network with its real IPs and ports'}] },
+  { id:'cola', nv:5, tema:{es:'Plan',en:'Plan'},
+    titulo:{es:'En cola: próximos ejercicios',en:'Queued: next exercises'},
+    texto:{es:'Lo siguiente: detectar fuerza bruta por SSH (MITRE T1110), vigilar PowerShell sospechoso con Sysmon, llevar los avisos de Suricata a Wazuh y montar un señuelo con Cowrie.',
+           en:'Next up: detecting SSH brute force (MITRE T1110), watching for suspicious PowerShell with Sysmon, feeding Suricata alerts into Wazuh and setting up a Cowrie honeypot.'},
+    porque:{es:'Nivel 5 porque aún no está hecho. Cuando lo esté, sube de nivel con su prueba.',en:'Level 5 because it is not done yet. Once it is, it moves up with its proof.'} }
+];
+
+const TXT = {
+  es:{barra:'TRIAJE.EXE · Cola de alertas de Iván Pérez',sub:'Cola de triaje · analista SOC N1 en formación · FCT desde el 8 mar 2027 · Madrid',cv:'CV rápido',contacto:'Contacto',
+      'l-r':'Rojo: lo que más dice de mí','l-a':'Ámbar: importante','l-g':'Gris: puede esperar','l-v':'Verde: ya atendida','l-tip':'Toca una fila para ver la prueba',
+      'g-t':'¿Primera vez en un SOC?','g-p':'Esto es una cola de alertas, como la que vigila un analista. Cada alerta es algo que he hecho de verdad: ábrela, mira la prueba y dala por atendida. Empieza por las rojas.',
+      'c-pri':'Prioridad','c-nv':'Nv','c-caso':'Caso','c-tema':'Tema','c-est':'Estado',cerrar:'Cerrar',aceptar:'Aceptar',volver:'Volver a la cola',modo:'Modo',oscura:'Oscura',clara:'Clara',
+      'cierre-t':'Caso cerrado','cierre-h':'5 de 5 alertas atendidas','cierre-p':'Conclusión del caso: candidato a analista SOC de nivel 1. Disponible para la FCT desde el 8 de marzo de 2027, en Madrid.',
+      cuenta:(n)=>`Atendidas ${n} de ${ALERTAS.length}`,rojo:'ROJO',ambar:'ÁMBAR',gris:'GRIS',verde:'VERDE',sin:'Sin atender',abierta:'Abierta',atendida:'Atendida',
+      dar:'Dar por atendida',ya:'Atendida',nivel:'Nivel',prueba:'Prueba',verPrueba:(n)=>n>1?`Ver las ${n} pruebas`:'Ver la prueba',pend:'pendiente',correo:'Correo'},
+  en:{barra:'TRIAGE.EXE · Iván Pérez alert queue',sub:'Triage queue · SOC L1 analyst in training · internship from 8 Mar 2027 · Madrid',cv:'Quick CV',contacto:'Contact',
+      'l-r':'Red: what says most about me','l-a':'Amber: important','l-g':'Grey: can wait','l-v':'Green: handled','l-tip':'Tap a row to see the proof',
+      'g-t':'First time in a SOC?','g-p':'This is an alert queue, like the one an analyst watches. Each alert is something I have actually done: open it, check the proof and mark it as handled. Start with the red ones.',
+      'c-pri':'Priority','c-nv':'Lv','c-caso':'Case','c-tema':'Topic','c-est':'Status',cerrar:'Close',aceptar:'OK',volver:'Back to the queue',modo:'Mode',oscura:'Dark',clara:'Light',
+      'cierre-t':'Case closed','cierre-h':'5 of 5 alerts handled','cierre-p':'Case conclusion: candidate for a level 1 SOC analyst role. Available for an internship from 8 March 2027, in Madrid.',
+      cuenta:(n)=>`Handled ${n} of ${ALERTAS.length}`,rojo:'RED',ambar:'AMBER',gris:'GREY',verde:'GREEN',sin:'Not handled',abierta:'Open',atendida:'Handled',
+      dar:'Mark as handled',ya:'Handled',nivel:'Level',prueba:'Proof',verPrueba:(n)=>n>1?`See the ${n} proofs`:'See the proof',pend:'pending',correo:'Email'}
+};
+
+let lang = 'es', abierta = null;
+const hechas = new Set();
+const $ = (s, el=document) => el.querySelector(s);
+const ico = (id) => `<svg class="i" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const t = (k) => TXT[lang][k];
+const clase = (a) => hechas.has(a.id) ? 'v' : a.nv >= 10 ? 'r' : a.nv >= 7 ? 'a' : 'g';
+const etiqueta = (c) => ({r:t('rojo'),a:t('ambar'),g:t('gris'),v:t('verde')})[c];
+
+function pintar(){
+  const L = lang;
+  $('#lista').innerHTML = ALERTAS.map((a, i) => {
+    const c = clase(a), ok = hechas.has(a.id), ab = abierta === a.id;
+    const estado = ok ? `${ico('check')}<span class="txt">${t('atendida')}</span>` : ab ? `<span class="dot"></span><span class="txt">${t('abierta')}</span>` : `<span class="dot${a.nv>=12?' late':''}"></span><span class="txt">${t('sin')}</span>`;
+    const pruebas = a.pruebas || [];
+    const lado = pruebas.length
+      ? `<button class="mini" type="button" data-prueba="${a.id}"><span class="sunk"><img src="${pruebas[0].src}" alt="${esc(pruebas[0][L])}" loading="lazy"></span><span>${ico('zoom')} ${t('verPrueba')(pruebas.length)}</span></button>`
+      : a.datos ? `<ul class="datos">${a.datos.map(d => `<li><b>${L==='es'?d[0]:d[1]}</b><span>${L==='es'?d[2]:d[3]}</span></li>`).join('')}</ul>` : '';
+    return `<li class="it ${c}${ok?' atendida':''}${ab?' abierta':''}${!ok&&a.nv>=12?' urge':''}">
+      <button class="tr" type="button" aria-expanded="${ab}" aria-controls="det-${a.id}" data-id="${a.id}">
+        <span class="pill">${ok?ico('check'):''}${etiqueta(c)}</span>
+        <span class="nv">${a.nv}</span>
+        <span class="cs">${esc(a.titulo[L])}<small>${esc(a.tema[L])}</small></span>
+        <span class="tema">${esc(a.tema[L])}</span>
+        <span class="est">${estado}</span>
+      </button>
+      <div class="det" id="det-${a.id}" ${ab?'':'inert'}><div><div class="cuerpo">
+        <div>
+          <p class="meta">${t('nivel')} ${a.nv} · ${esc(a.tema[L])}${a.fecha?' · '+a.fecha:''}</p>
+          <p>${esc(a.texto[L])}</p>
+          <p class="porque">${esc(a.porque[L])}</p>
+          <div class="fila">
+            ${a.enlace?`<a class="btn" href="${a.enlace.href}" target="_blank" rel="noopener">${ico('out')}${esc(a.enlace[L])}</a>`:''}
+            ${ok?`<span class="btn" aria-disabled="true">${ico('check')}${t('ya')}</span>`:`<button class="btn" type="button" data-atender="${a.id}">${ico('check')}${t('dar')}</button>`}
+          </div>
+        </div>
+        ${lado}
+      </div></div></div>
+    </li>`;
+  }).join('');
+  const n = hechas.size, total = ALERTAS.length, seg = 20;
+  $('#cuenta').textContent = t('cuenta')(n);
+  $('#barra').setAttribute('aria-valuenow', n);
+  $('#barra').setAttribute('aria-valuemax', total);
+  // la barra se rellena bloque a bloque: solo los bloques nuevos llevan retardo
+  const bloques = $('#barra').children.length === seg ? [...$('#barra').children] : ($('#barra').innerHTML = '<i></i>'.repeat(seg), [...$('#barra').children]);
+  const lleno = Math.round(n / total * seg);
+  let nuevos = 0;
+  bloques.forEach((b, k) => {
+    const on = k < lleno;
+    b.style.transitionDelay = on && !b.classList.contains('on') ? (nuevos++ * 70) + 'ms' : '0ms';
+    b.classList.toggle('on', on);
+  });
+}
+
+function idioma(l){
+  lang = l; document.documentElement.lang = l;
+  document.querySelectorAll('[data-t]').forEach(el => { const v = t(el.dataset.t); if (typeof v === 'string') el.textContent = v; });
+  document.querySelectorAll('[data-t-aria]').forEach(el => el.setAttribute('aria-label', t(el.dataset.tAria)));
+  $('#b-ayuda').setAttribute('aria-label', l === 'es' ? 'Ayuda' : 'Help');
+  document.querySelectorAll('[data-lang]').forEach(b => b.setAttribute('aria-pressed', b.dataset.lang === l));
+  guardar('lang', l); pintar(); pintarContacto();
+}
+function tema(m){
+  document.documentElement.dataset.theme = m;
+  document.querySelectorAll('[data-tema]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tema === m));
+  guardar('tema', m);
+}
+function guardar(k, v){ try { localStorage.setItem('cola-' + k, v); } catch(e) {} }
+function leer(k){ try { return localStorage.getItem('cola-' + k); } catch(e) { return null; } }
+
+function pintarContacto(){
+  const fila = (k, v, href) => `<li><span>${k}</span>${v ? (href ? `<a href="${href}" target="_blank" rel="noopener">${esc(v)}</a>` : `<span class="val">${esc(v)}</span>`) : `<span class="pend">${t('pend')}</span>`}</li>`;
+  $('#d-contacto-c').innerHTML =
+    fila('LinkedIn', CONTACTO.linkedin && CONTACTO.linkedin.replace(/^https?:\/\/(www\.)?/, ''), CONTACTO.linkedin) +
+    fila(t('correo'), CONTACTO.correo, CONTACTO.correo && 'mailto:' + CONTACTO.correo) +
+    fila('GitHub', CONTACTO.github.replace(/^https?:\/\//, ''), CONTACTO.github);
+}
+
+function abrirPrueba(id){
+  const a = ALERTAS.find(x => x.id === id);
+  $('#d-prueba-t').textContent = `${t('prueba')} · ${a.titulo[lang]}`;
+  $('#d-prueba-c').innerHTML = a.pruebas.map(p => `<figure><div class="sunk"><img src="${p.src}" alt="${esc(p[lang])}"></div><figcaption>${esc(p[lang])}</figcaption></figure>`).join('') +
+    `<div class="pie"><button class="btn" type="button" data-cerrar>${t('cerrar')}</button></div>`;
+  $('#d-prueba').showModal();
+}
+function abrirCV(){ CONTACTO.cv ? window.open(CONTACTO.cv, '_blank', 'noopener') : $('#d-cv').showModal(); }
+
+document.addEventListener('click', (e) => {
+  const fila = e.target.closest('.tr');
+  if (fila) { abierta = abierta === fila.dataset.id ? null : fila.dataset.id; pintar(); $(`.tr[data-id="${fila.dataset.id}"]`).focus(); return; }
+  const at = e.target.closest('[data-atender]');
+  if (at) {
+    hechas.add(at.dataset.atender); pintar();
+    $(`.tr[data-id="${at.dataset.atender}"]`).focus();
+    if (hechas.size === ALERTAS.length) setTimeout(() => $('#d-cierre').showModal(), 350);
+    return;
+  }
+  const pr = e.target.closest('[data-prueba]'); if (pr) return abrirPrueba(pr.dataset.prueba);
+  const ce = e.target.closest('[data-cerrar]'); if (ce) return ce.closest('dialog').close();
+  const ab = e.target.closest('[data-abre]');
+  if (ab) { ab.closest('dialog').close(); return ab.dataset.abre === 'cv' ? abrirCV() : $('#d-contacto').showModal(); }
+  const l = e.target.closest('[data-lang]'); if (l) return idioma(l.dataset.lang);
+  const m = e.target.closest('[data-tema]'); if (m) return tema(m.dataset.tema);
+  if (e.target.closest('#b-cv')) return abrirCV();
+  if (e.target.closest('#b-contacto')) return $('#d-contacto').showModal();
+  if (e.target.closest('#globo-x')) { $('#globo').hidden = true; return $('#b-ayuda').focus(); }
+  if (e.target.closest('#b-ayuda')) { $('#globo').hidden = false; return $('#globo-x').focus(); }
+  if (e.target.tagName === 'DIALOG') e.target.close(); /* clic fuera de la ventana */
+});
+
+tema(leer('tema') || 'oscura');
+idioma(leer('lang') || 'es');
+</script>
+</body>
+</html>
